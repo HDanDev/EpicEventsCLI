@@ -1,0 +1,5 @@
+click
+bcrypt
+SQLAlchemy
+pytest
+sentry-sdk
