@@ -1,23 +1,10 @@
-# import bcrypt
-# from sqlalchemy.orm import Session
-# from crm.models import Collaborator
-# from crm.database import SessionLocal
-
-# def create_user(first_name, last_name, email, password, role):
-#     session = SessionLocal()
-#     hashed_password = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
-#     user = Collaborator(first_name=first_name, last_name=last_name, email=email, password_hash=hashed_password, role_id=role)
-#     session.add(user)
-#     session.commit()
-#     session.close()
-#     print(f"User {user.full_name} created.")
-
 from sqlalchemy.orm import Session
 from crm.models.collaborators import Collaborator
 from crm.models.roles import Role
-from crm.database import SessionLocal
+from crm.helpers.format_helper import FormatHelper
 
-def create_collaborator(db: Session, first_name: str, last_name: str, email: str, password_hash: str, role_id: int):
+
+def create_collaborator(db: Session, first_name: str, last_name: str, email: str, password: str, role_id: int):
     """Create a new collaborator."""
     role = db.query(Role).filter(Role.id == role_id).first()
     if not role:
@@ -27,7 +14,7 @@ def create_collaborator(db: Session, first_name: str, last_name: str, email: str
         first_name=first_name,
         last_name=last_name,
         email=email,
-        password_hash=password_hash,
+        password_hash=FormatHelper.hash_password(password),
         role_id=role_id
     )
     db.add(collaborator)
@@ -57,14 +44,14 @@ def update_collaborator(db: Session, collaborator_id: int, **kwargs):
     db.refresh(collaborator)
     return collaborator
 
-def update_password(db: Session, collaborator_id: int, hashed_password: str):
+def update_password(db: Session, collaborator_id: int, password: str):
     """Update a collaborator's password."""
     collaborator = db.query(Collaborator).filter(Collaborator.id == collaborator_id).first()
     if not collaborator:
         return None
 
-    if hashed_password is not None:
-        setattr(collaborator, "password_hash", hashed_password)
+    if password is not None:
+        setattr(collaborator, "password_hash", FormatHelper.hash_password(password))
 
     db.commit()
     db.refresh(collaborator)

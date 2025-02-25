@@ -1,6 +1,5 @@
 import re
 from datetime import datetime
-from sqlalchemy.orm import sessionmaker
 from crm.models.clients import Client
 from crm.models.collaborators import Collaborator
 from crm.models.contracts import Contract
@@ -8,12 +7,10 @@ from crm.models.roles import Role, RoleEnum
 from crm.enums.model_type_enum import ModelTypeEnum
 from crm.enums.foreign_key_type_enum import ForeignKeyTypeEnum
 from config import SECRET_KEY, KEYRING_SERVICE
-from crm.database import SessionLocal
-
-db = SessionLocal()
 
 class ValidatorHelper:
-    def __init__(self, model_type, data):
+    def __init__(self, context, model_type, data):
+        self.context = context
         self.model_type = model_type
         self.data = data
         self.error_messages = []
@@ -80,15 +77,17 @@ class ValidatorHelper:
             print("Invalid model type passed")
 
     def validate_email(self, field, value):
+        self.validate_string(field, value, min_length=0, max_length=30)
         email_regex = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
         if not re.match(email_regex, value):
             self.add_error(field, "Invalid email format.")
 
     def validate_datetime(self, field, value):
+        self.validate_string(field, value, min_length=0, max_length=20)
         try:
-            datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ")
+            datetime.strptime(value, "%d/%m/%Y-%Hh%M")
         except ValueError:
-            self.add_error(field, "Invalid datetime format. Expected format: YYYY-MM-DDTHH:MM:SSZ")
+            self.add_error(field, "Invalid datetime format. Expected format: DD/MM/YYYY-HHhMM")
 
     def validate_string(self, field, value, min_length=0, max_length=None):
         if len(value) < min_length:
@@ -97,6 +96,7 @@ class ValidatorHelper:
             self.add_error(field, f"Value must not exceed {max_length} characters.")
 
     def validate_password(self, field, value):
+        self.validate_string(field, value, min_length=0, max_length=40)
         if len(value) < 8:
             self.add_error(field, "Password must be at least 8 characters long.")
         if not re.search(r"[A-Z]", value):
@@ -114,25 +114,52 @@ class ValidatorHelper:
         if max_value is not None and value > max_value:
             self.add_error(field, f"Value must not exceed {max_value}.")
 
+    def validate_phone_number(self, field, value):
+        self.validate_string(field, value, min_length=0, max_length=20)
+        phone_regex = r"^(\+?[0-9]{1,4}[\s\-]?)?(\(?[0-9]{1,5}\)?[\s\-]?[0-9]{1,5}[\s\-]?[0-9]{1,5})+$"
+        if not re.match(phone_regex, value):
+            self.add_error(field, "Invalid phone number format. Expected formats include '+44 20 7946 0958' (UK), '+33 1 70 18 99 87' (France), or '(030) 12345678' (Germany)")
+
+    def validate_address(self, field, value):
+        self.validate_string(field, value, min_length=0, max_length=100)
+        address_regex = r"^\d+\s+\w+(\s\w+)*,\s+\d+\s+\w+(\s\w+)*,\s+\w+(\s\w+)*$"
+        if not re.match(address_regex, value):
+            self.add_error(
+                field,
+                "Invalid address format. Expected format: '<Street number> <Street name>, <City postal code>, <Country>'."
+            )
+
     def validate_foreign_id(self, field, value, foreign_key_type_enum):
         """Check if foreign key exists in the database"""
-        entity = None
-
+        self.validate_number(field, value, 0)
         if foreign_key_type_enum == ForeignKeyTypeEnum.CLIENT:
-            entity = db.get(Client, value)
+            self.entity_exists_check(field, value, Client)
+            
         elif foreign_key_type_enum == ForeignKeyTypeEnum.COMMERCIAL:
-            entity = db.get(Collaborator, value)
+            self.entity_exists_check(field, value, Collaborator, RoleEnum.SALES)
+                        
         elif foreign_key_type_enum == ForeignKeyTypeEnum.CONTRACT:
-            entity = db.get(Contract, value)
+            self.entity_exists_check(field, value, Contract)
+            
         elif foreign_key_type_enum == ForeignKeyTypeEnum.ROLE:
-            entity = db.get(Role, value)
+            self.entity_exists_check(field, value, Role)
+            
         elif foreign_key_type_enum == ForeignKeyTypeEnum.SUPPORT:
-            entity = db.get(Collaborator, value)
+            self.entity_exists_check(field, value, Collaborator, RoleEnum.SUPPORT)
+        else:
+            self.add_error(field, "Invalid foreign key")
+            
+    def entity_exists_check(self, field, entity_id, model, role_type_enum=None):
+        entity = self.context.get(model, entity_id)
+        if entity:
+            if role_type_enum is not None and role_type_enum.value != entity.role_id:
+                self.add_error(field, "The given collaborator is not of the authorized role")
+                
+            if model is Contract and not entity.signed:
+                self.add_error(field, "It is not allowed to create an event for an unsigned contract")
 
-        if not entity:
-            self.add_error(field, "No such entry registered in the database.")
-
-        db.close()
+        else:
+            self.add_error(field, "No such entry registered in the database")
 
     def add_error(self, field, message):
         self.error_messages.append(f"{field}: {message}")

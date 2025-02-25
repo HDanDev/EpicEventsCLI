@@ -29,7 +29,7 @@ def logout_service(db: Session):
     if not token:
         return "⚠️ No active session found."
 
-    decoded_token = decode_auth_token(token, db)
+    decoded_token = decode_auth_token(db, token)
 
     if isinstance(decoded_token, str) and not decoded_token.isdigit():
         return f"❌ {decoded_token}"

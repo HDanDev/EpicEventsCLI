@@ -5,7 +5,8 @@ from crm.helpers.validator_helper import ValidatorHelper
 from crm.helpers.authorize_helper import role_restricted, authentication_required, self_user_restricted, get_current_user
 from crm.enums.model_type_enum import ModelTypeEnum
 from crm.models.roles import RoleEnum
-import bcrypt
+
+db = SessionLocal()
 
 @click.group()
 def collaborators():
@@ -18,10 +19,9 @@ def collaborators():
 @click.option('--email', prompt="Email", help="Email of the collaborator")
 @click.option('--password', prompt=True, hide_input=True, confirmation_prompt=True, help="Password for the collaborator")
 @click.option('--role-id', type=int, prompt="Role ID", help="Role ID of the collaborator")
-@role_restricted([RoleEnum.MANAGEMENT])
+@role_restricted(db, [RoleEnum.MANAGEMENT])
 def add(first_name, last_name, email, password, role_id):
     """Add a new collaborator."""
-    db = SessionLocal()
     data = {
         "first_name": first_name,
         "last_name": last_name,
@@ -30,7 +30,7 @@ def add(first_name, last_name, email, password, role_id):
         "role_id": role_id
     }
 
-    validator = ValidatorHelper(ModelTypeEnum.COLLABORATOR, data)
+    validator = ValidatorHelper(db, ModelTypeEnum.COLLABORATOR, data)
     validator.validate_data()
 
     if not validator.is_valid():
@@ -40,10 +40,9 @@ def add(first_name, last_name, email, password, role_id):
         db.close()
         return
     
-    hashed_password = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
     try:
-        collaborator = create_collaborator(db, first_name, last_name, email, hashed_password, role_id)
-        click.echo(f"✅ Collaborator {collaborator.first_name} {collaborator.last_name} created!")
+        collaborator = create_collaborator(db, first_name, last_name, email, password, role_id)
+        click.echo(f"✅ Collaborator {collaborator.full_name} created!")
     except ValueError as e:
         click.echo(f"❌ Error: {e}")
     finally:
@@ -51,10 +50,9 @@ def add(first_name, last_name, email, password, role_id):
 
 @click.command()
 @click.argument('collaborator_id', type=int)
-@authentication_required
+@authentication_required(db)
 def view(collaborator_id):
-    """View a collaborator by ID."""
-    db = SessionLocal()
+    """Get a collaborator by ID."""
     collaborator = get_collaborator(db, collaborator_id)
     db.close()
     if collaborator:
@@ -63,17 +61,16 @@ def view(collaborator_id):
         click.echo("❌ Collaborator not found!")
 
 @click.command()
-@authentication_required
+@authentication_required(db)
 def list():
     """List all collaborators."""
-    db = SessionLocal()
     collaborators = get_all_collaborators(db)
     db.close()
     if not collaborators:
         click.echo("🚨 No collaborators found!")
     else:
         for c in collaborators:
-            click.echo(f"👤 {c.infos}")
+            click.echo(f"👤 {c.minimal_infos}")
 
 @click.command()
 @click.argument('collaborator_id', type=int)
@@ -81,10 +78,9 @@ def list():
 @click.option('--last-name', help="New last name")
 @click.option('--email', help="New email")
 @click.option('--role-id', type=int, help="New role ID")
-@role_restricted([RoleEnum.MANAGEMENT], True)
+@role_restricted(db, [RoleEnum.MANAGEMENT], True)
 def edit(collaborator_id, first_name, last_name, email, role_id):
     """Edit a collaborator."""
-    db = SessionLocal()
     data = {
         "first_name": first_name,
         "last_name": last_name,
@@ -92,7 +88,7 @@ def edit(collaborator_id, first_name, last_name, email, role_id):
         "role_id": role_id
     }
 
-    validator = ValidatorHelper(ModelTypeEnum.COLLABORATOR, data)
+    validator = ValidatorHelper(db, ModelTypeEnum.COLLABORATOR, data)
     validator.validate_data()
 
     if not validator.is_valid():
@@ -113,15 +109,14 @@ def edit(collaborator_id, first_name, last_name, email, role_id):
         
 @click.command()
 @click.option('--password', help="New password")
-@self_user_restricted
+@self_user_restricted(db)
 def edit_password(password):
     """Update password."""
-    db = SessionLocal()
     data = {
         "password": password
     }
 
-    validator = ValidatorHelper(ModelTypeEnum.COLLABORATOR, data)
+    validator = ValidatorHelper(db, ModelTypeEnum.COLLABORATOR, data)
     validator.validate_data()
 
     if not validator.is_valid():
@@ -131,9 +126,8 @@ def edit_password(password):
         db.close()
         return
     
-    current_collaborator = get_current_user()
-    hashed_password = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-    collaborator = update_password(db, current_collaborator.id, hashed_password)
+    current_collaborator = get_current_user(db)
+    collaborator = update_password(db, current_collaborator.id, password)
     db.close()
     if collaborator:
         click.echo(f"✅ Password updated successfully!")
@@ -143,10 +137,9 @@ def edit_password(password):
 
 @click.command()
 @click.argument('collaborator_id', type=int)
-@role_restricted([RoleEnum.MANAGEMENT], True)
-def remove(collaborator_id):
+@role_restricted(db, [RoleEnum.MANAGEMENT], True)
+def delete(collaborator_id):
     """Remove a collaborator."""
-    db = SessionLocal()
     success = delete_collaborator(db, collaborator_id)
     db.close()
     if success:
@@ -159,4 +152,4 @@ collaborators.add_command(view)
 collaborators.add_command(list)
 collaborators.add_command(edit)
 collaborators.add_command(edit_password)
-collaborators.add_command(remove)
+collaborators.add_command(delete)

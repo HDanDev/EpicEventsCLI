@@ -12,39 +12,40 @@ import keyring
 from config import SECRET_KEY, KEYRING_SERVICE
 from crm.database import SessionLocal
 
-db = SessionLocal()
 
-def get_current_user():
+def get_current_user(context):
     """Retrieve the currently logged-in user using stored token."""
     token = keyring.get_password(KEYRING_SERVICE, "auth_token")
     if not token:
         return None, "❌ No stored authentication token. Please log in first."
 
-    user, error = get_authenticated_collaborator(token)
+    user, error = get_authenticated_collaborator(context, token)
     if error:
         return None, error
 
     return user, None
 
-def authentication_required(f):
+def authentication_required(context):
     """Decorator to require authentication for CLI commands."""
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        current_user, error = get_current_user()
-        if error:
-            click.echo(error)
-            return
-        return f(*args, **kwargs)
-    return decorated
+    def decorator(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            current_user, error = get_current_user(context)
+            if error:
+                click.echo(error)
+                return
+            return f(*args, **kwargs)
+        return decorated
+    return decorator
 
-def get_authenticated_collaborator(token):
+def get_authenticated_collaborator(context, token):
     """Retrieve an authenticated user based on token."""
     if not token:
         return None, "❌ Token is missing or invalid."
 
     try:
-        collaborator_id = decode_auth_token(token)
-        current_collaborator = db.get(Collaborator, collaborator_id)
+        collaborator_id = decode_auth_token(context, token)
+        current_collaborator = context.get(Collaborator, collaborator_id)
 
         if not current_collaborator:
             return None, "❌ Unauthorized token for this action."
@@ -54,27 +55,29 @@ def get_authenticated_collaborator(token):
     except Exception as e:
         return None, "❌ Token is invalid or expired."
 
-def self_user_restricted(f):
+def self_user_restricted(context):
     """Decorator to restrict actions to the logged-in user."""
-    @wraps(f)
-    @authentication_required
-    def decorated(id, *args, **kwargs):
-        current_collaborator, error = get_current_user()
-        if error or current_collaborator.id != id:
-            click.echo("❌ Permission denied.")
-            return
-        return f(id, *args, **kwargs)
-    return decorated
+    def decorator(f):
+        @wraps(f)
+        @authentication_required(context)
+        def decorated(id, *args, **kwargs):
+            current_collaborator, error = get_current_user(context)
+            if error or current_collaborator.id != id:
+                click.echo("❌ Permission denied.")
+                return
+            return f(id, *args, **kwargs)
+        return decorated
+    return decorator
 
-def role_restricted(roles, is_self_edition_exception=False, relationType=RelationshipEnum.NONE):
+def role_restricted(context, roles, is_self_edition_exception=False, relationType=RelationshipEnum.NONE):
     """Decorator to restrict actions based on user roles."""
     def decorator(func):
         @wraps(func)
-        @authentication_required
+        @authentication_required(context)
         def wrapper(*args, **kwargs):
             target_user_id = kwargs.get("id")
             
-            current_collaborator, error = get_current_user()
+            current_collaborator, error = get_current_user(context)
 
             if is_self_edition_exception and current_collaborator.id == target_user_id:
                 return func(*args, **kwargs)
@@ -85,7 +88,7 @@ def role_restricted(roles, is_self_edition_exception=False, relationType=Relatio
                 return
 
             if relationType:
-                result = relationship_check_switch(current_collaborator, relationType, *args, **kwargs)
+                result = relationship_check_switch(context, current_collaborator, relationType, *args, **kwargs)
                 if result:
                     click.echo(result)
                     return
@@ -107,12 +110,12 @@ def encode_auth_token(user_id):
         return str(e)
 
 
-def decode_auth_token(auth_token):
+def decode_auth_token(context, auth_token):
     """Decodes a JWT token and checks if it is blacklisted."""
     try:
         payload = jwt.decode(auth_token, SECRET_KEY, algorithms=["HS256"])
         
-        blacklisted = db.query(BlacklistToken).filter_by(token=auth_token).first()
+        blacklisted = context.query(BlacklistToken).filter_by(token=auth_token).first()
         if blacklisted:
             return "Token has been revoked. Please log in again."
 
@@ -123,20 +126,20 @@ def decode_auth_token(auth_token):
         return "Invalid token. Please log in again."
 
 
-def relationship_check_switch(current_collaborator, relationship_enum=RelationshipEnum.NONE, *args, **kwargs):
+def relationship_check_switch(context, current_collaborator, relationship_enum=RelationshipEnum.NONE, *args, **kwargs):
     """Check user relationships for permission-based access."""
     if relationship_enum == RelationshipEnum.NONE or not current_collaborator:
         return None
     elif RoleEnum(current_collaborator.role_id) == RoleEnum.SALES and relationship_enum == RelationshipEnum.COLLABORATOR_CLIENT:
-        return collaborator_client_relationship_check(current_collaborator, *args, **kwargs)
+        return collaborator_client_relationship_check(context, current_collaborator, *args, **kwargs)
     elif RoleEnum(current_collaborator.role_id) == RoleEnum.SALES and relationship_enum == RelationshipEnum.COLLABORATOR_CONTRACT:
-        return collaborator_contract_relationship_check(current_collaborator, *args, **kwargs)
+        return collaborator_contract_relationship_check(context, current_collaborator, *args, **kwargs)
 
-def collaborator_client_relationship_check(current_collaborator, *args, **kwargs):
+def collaborator_client_relationship_check(context, current_collaborator, *args, **kwargs):
     """Ensure a collaborator can only interact with assigned clients."""
     client_id = kwargs.get("id")
 
-    client = db.query(Client).filter(
+    client = context.query(Client).filter(
         Client.id == client_id,
         Client.commercial_id == current_collaborator.id
         ).first()
@@ -145,14 +148,14 @@ def collaborator_client_relationship_check(current_collaborator, *args, **kwargs
         return "❌ Permission denied: You can only interact with assigned clients."
     return None
 
-def collaborator_contract_relationship_check(current_collaborator, *args, **kwargs):
+def collaborator_contract_relationship_check(context, current_collaborator, *args, **kwargs):
     """Ensure a collaborator can only create events for signed contracts."""
     contract_id = kwargs.get("contract_id")
 
     if not contract_id:
         return "❌ The contract_id field is mandatory."
 
-    contract = db.get(Contract, contract_id)
+    contract = context.get(Contract, contract_id)
 
     if not contract:
         return "❌ Contract not found."
@@ -160,7 +163,7 @@ def collaborator_contract_relationship_check(current_collaborator, *args, **kwar
     if not contract.signed:
         return "❌ Permission denied: Only signed contracts allow event creation."
 
-    client = db.query(Client).filter(
+    client = context.query(Client).filter(
         Client.id == contract.client_id,
         Client.commercial_id == current_collaborator.id
         ).first()

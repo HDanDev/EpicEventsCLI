@@ -1,6 +1,5 @@
 from sqlalchemy import Column, Integer, String, ForeignKey, Text, DateTime
 from sqlalchemy.orm import relationship
-from datetime import datetime
 from crm.models.base import Base
 
 class Event(Base):
@@ -19,34 +18,35 @@ class Event(Base):
 
     contract = relationship("Contract")
     support = relationship("Collaborator")
+    
+    @property
+    def infos(self):
+        """Returns a string representation of the event."""
+        return (
+            f"""
+            ID: {self.id}
+            Name: {self.name}
+            Start date: {self.start_date.isoformat() if self.start_date else None}
+            End date: {self.end_date.isoformat() if self.end_date else None}
+            Location: {self.location}
+            Number of attendees: {self.attendees}
+            Additional notes: {self.notes}
+            Related contract ID: {self.contract_id}
+            Related support ID: {self.support_id}
+            """
+            )
+        
+    @property
+    def minimal_infos(self):
+        """Returns a succint string representation of the event."""
+        return (
+            f"""
+            ID: {self.id}
+            Name: {self.name}
+            End date: {self.end_date.isoformat() if self.end_date else None}
+            Related support ID: {self.support_id}
+            """
+            )
 
     def __repr__(self):
         return f"<Event {self.name} (Contract ID: {self.contract_id})>"
-
-    def set_start_date(self, date):
-        self.start_date = datetime.strptime(date, "%Y-%m-%dT%H:%M:%SZ")
-        
-    def set_end_date(self, date):
-        self.end_date = datetime.strptime(date, "%Y-%m-%dT%H:%M:%SZ")
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "name": self.name,
-            "start_date": self.start_date.isoformat() if self.start_date else None,
-            "end_date": self.end_date.isoformat() if self.end_date else None,
-            "location": self.location,
-            "attendees": self.attendees,
-            "notes": self.notes,
-            "contract_id": self.contract_id,
-            "support_id": self.support_id,
-        }
-        
-    def minimal_to_dict(self):
-        return {
-            "id": self.id,
-            "name": self.name,
-            "end_date": self.end_date.isoformat() if self.end_date else None,
-            "contract_id": self.contract_id,
-            "support_id": self.support_id
-        }

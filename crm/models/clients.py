@@ -25,28 +25,35 @@ class Client(Base):
     def full_name(self):
         return f"{self.first_name} {self.last_name}"
     
+    @property
+    def infos(self):
+        """Returns a string representation of the client."""
+        return (
+            f"""
+            ID: {self.id}
+            First name: {self.first_name}
+            Last name: {self.last_name}
+            Email: {self.email}
+            Phone number: {self.phone}
+            Company name: {self.company_name}
+            First contact date: {self.first_contact_date.isoformat() if self.first_contact_date else None}
+            Last contact date: {self.last_contact_date.isoformat() if self.last_contact_date else None}
+            Related collaborator ID: {self.commercial_id}
+            """
+            )
+        
+    @property
+    def minimal_infos(self):
+        """Returns a succint string representation of the client."""
+        return (
+            f"""
+            ID: {self.id}
+            First name: {self.first_name}
+            Last name: {self.last_name}
+            Email: {self.email}
+            Related collaborator ID: {self.commercial_id}
+            """
+            )
+    
     def __repr__(self):
         return f"<Client {self.full_name} from {self.company_name}>"
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "first_name": self.first_name,
-            "last_name": self.last_name,
-            "email": self.email,
-            "phone": self.phone,
-            "company_name": self.company_name,
-            "first_contact_date": self.first_contact_date.isoformat() if self.first_contact_date else None,
-            "last_contact_date": self.last_contact_date.isoformat() if self.last_contact_date else None,
-            "contracts": [contract.to_dict() for contract in self.contracts] if self.contracts else [],
-            "commercial_id": self.commercial_id,
-        }
-        
-    def minimal_to_dict(self):
-        return {
-            "id": self.id,
-            "first_name": self.first_name,
-            "last_name": self.last_name,
-            "email": self.email,
-            "commercial_id": self.commercial_id
-        }
