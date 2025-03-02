@@ -1,12 +1,11 @@
 import click
-from crm.database import SessionLocal
+from crm.database import DB
 from crm.services.collaborators import create_collaborator, get_collaborator, get_all_collaborators, update_collaborator, update_password, delete_collaborator
 from crm.helpers.validator_helper import ValidatorHelper
 from crm.helpers.authorize_helper import role_restricted, authentication_required, self_user_restricted, get_current_user
 from crm.enums.model_type_enum import ModelTypeEnum
 from crm.models.roles import RoleEnum
 
-db = SessionLocal()
 
 @click.group()
 def collaborators():
@@ -19,7 +18,7 @@ def collaborators():
 @click.option('--email', prompt="Email", help="Email of the collaborator")
 @click.option('--password', prompt=True, hide_input=True, confirmation_prompt=True, help="Password for the collaborator")
 @click.option('--role-id', type=int, prompt="Role ID", help="Role ID of the collaborator")
-@role_restricted(db, [RoleEnum.MANAGEMENT])
+@role_restricted([RoleEnum.MANAGEMENT])
 def add(first_name, last_name, email, password, role_id):
     """Add a new collaborator."""
     data = {
@@ -30,42 +29,42 @@ def add(first_name, last_name, email, password, role_id):
         "role_id": role_id
     }
 
-    validator = ValidatorHelper(db, ModelTypeEnum.COLLABORATOR, data)
+    validator = ValidatorHelper(DB, ModelTypeEnum.COLLABORATOR, data)
     validator.validate_data()
 
     if not validator.is_valid():
         click.echo("❌ Validation failed:")
         for error in validator.error_messages:
             click.echo(f"   - {error}")
-        db.close()
+        DB.close()
         return
     
     try:
-        collaborator = create_collaborator(db, first_name, last_name, email, password, role_id)
+        collaborator = create_collaborator(DB, first_name, last_name, email, password, role_id)
         click.echo(f"✅ Collaborator {collaborator.full_name} created!")
     except ValueError as e:
         click.echo(f"❌ Error: {e}")
     finally:
-        db.close()
+        DB.close()
 
 @click.command()
 @click.argument('collaborator_id', type=int)
-@authentication_required(db)
+@authentication_required()
 def view(collaborator_id):
     """Get a collaborator by ID."""
-    collaborator = get_collaborator(db, collaborator_id)
-    db.close()
+    collaborator = get_collaborator(DB, collaborator_id)
+    DB.close()
     if collaborator:
         click.echo(f"👤 {collaborator.infos}")
     else:
         click.echo("❌ Collaborator not found!")
 
 @click.command()
-@authentication_required(db)
+@authentication_required()
 def list():
     """List all collaborators."""
-    collaborators = get_all_collaborators(db)
-    db.close()
+    collaborators = get_all_collaborators(DB)
+    DB.close()
     if not collaborators:
         click.echo("🚨 No collaborators found!")
     else:
@@ -78,7 +77,7 @@ def list():
 @click.option('--last-name', help="New last name")
 @click.option('--email', help="New email")
 @click.option('--role-id', type=int, help="New role ID")
-@role_restricted(db, [RoleEnum.MANAGEMENT], True)
+@role_restricted([RoleEnum.MANAGEMENT], True)
 def edit(collaborator_id, first_name, last_name, email, role_id):
     """Edit a collaborator."""
     data = {
@@ -88,20 +87,20 @@ def edit(collaborator_id, first_name, last_name, email, role_id):
         "role_id": role_id
     }
 
-    validator = ValidatorHelper(db, ModelTypeEnum.COLLABORATOR, data)
+    validator = ValidatorHelper(DB, ModelTypeEnum.COLLABORATOR, data)
     validator.validate_data()
 
     if not validator.is_valid():
         click.echo("❌ Validation failed:")
         for error in validator.error_messages:
             click.echo(f"   - {error}")
-        db.close()
+        DB.close()
         return
 
     updates = {"first_name": first_name, "last_name": last_name, "email": email, "role_id": role_id}
     
-    collaborator = update_collaborator(db, collaborator_id, **updates)
-    db.close()
+    collaborator = update_collaborator(DB, collaborator_id, **updates)
+    DB.close()
     if collaborator:
         click.echo(f"✅ Collaborator {collaborator_id} updated successfully!")
     else:
@@ -109,26 +108,26 @@ def edit(collaborator_id, first_name, last_name, email, role_id):
         
 @click.command()
 @click.option('--password', help="New password")
-@self_user_restricted(db)
+@self_user_restricted()
 def edit_password(password):
     """Update password."""
     data = {
         "password": password
     }
 
-    validator = ValidatorHelper(db, ModelTypeEnum.COLLABORATOR, data)
+    validator = ValidatorHelper(DB, ModelTypeEnum.COLLABORATOR, data)
     validator.validate_data()
 
     if not validator.is_valid():
         click.echo("❌ Validation failed:")
         for error in validator.error_messages:
             click.echo(f"   - {error}")
-        db.close()
+        DB.close()
         return
     
-    current_collaborator = get_current_user(db)
-    collaborator = update_password(db, current_collaborator.id, password)
-    db.close()
+    current_collaborator = get_current_user(DB)
+    collaborator = update_password(DB, current_collaborator.id, password)
+    DB.close()
     if collaborator:
         click.echo(f"✅ Password updated successfully!")
     else:
@@ -137,11 +136,11 @@ def edit_password(password):
 
 @click.command()
 @click.argument('collaborator_id', type=int)
-@role_restricted(db, [RoleEnum.MANAGEMENT], True)
+@role_restricted([RoleEnum.MANAGEMENT], True)
 def delete(collaborator_id):
     """Remove a collaborator."""
-    success = delete_collaborator(db, collaborator_id)
-    db.close()
+    success = delete_collaborator(DB, collaborator_id)
+    DB.close()
     if success:
         click.echo(f"✅ Collaborator {collaborator_id} deleted successfully!")
     else:

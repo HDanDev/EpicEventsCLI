@@ -25,8 +25,8 @@ def get_contract(db: Session, contract_id: int):
 
 def get_all_contracts(db: Session):
     """Retrieve all contracts."""
-    current_collaborator, error = get_current_user(db)
-    if not error and RoleEnum(current_collaborator.id) == RoleEnum.SALES:
+    current_collaborator, error = get_current_user()
+    if not error and RoleEnum(current_collaborator.role_id) == RoleEnum.SALES:
         print("add filtering for Sales")
     return db.query(Contract).all()
 

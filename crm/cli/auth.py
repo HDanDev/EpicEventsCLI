@@ -1,6 +1,6 @@
 import click
 from crm.services.auth import login_service, logout_service
-from crm.database import SessionLocal
+from crm.database import DB
 
 @click.group()
 def auth():
@@ -12,18 +12,16 @@ def auth():
 @click.option("--password", prompt=True, confirmation_prompt=False, help="Your password")
 def login(email, password):
     """Log in to the CRM system"""
-    db = SessionLocal()
-    user, error = login_service(db, email, password)
+    user, error = login_service(DB, email, password)
     if error:
         click.echo(error)
         return
-    click.echo(f"✅ Logged in as {user.full_name}!")
+    click.echo(f"✅ Login successful! Logged in as {user.full_name}!")
 
 @click.command()
 def logout():
     """Log out of the CRM system"""
-    db = SessionLocal()
-    error = logout_service(db)
+    error = logout_service(DB)
     
     if error:
         click.echo(error)

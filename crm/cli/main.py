@@ -7,6 +7,8 @@ from crm.cli.clients import clients
 from crm.cli.contracts import contracts
 from crm.cli.events import events
 from crm.cli.auth import auth
+from config import sentry_sdk
+
 
 @click.group()
 def cli():
@@ -20,4 +22,8 @@ cli.add_command(contracts)
 cli.add_command(events)
 
 if __name__ == "__main__":
-    cli()
+    try:
+        cli()
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+        raise

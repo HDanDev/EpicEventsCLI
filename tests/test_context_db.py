@@ -1,5 +1,6 @@
 import pytest
 from sqlalchemy import create_engine, inspect
+from click.testing import CliRunner
 from sqlalchemy.orm import sessionmaker
 from crm.models import Base
 from crm.models.roles import Role
@@ -58,14 +59,14 @@ def test_db():
             last_name="Manager",
             email=test_manager_email,
             password_hash=hashed_password,
-            role_id=1
+            role_id=3
         ),
         Collaborator(
             first_name="Test",
             last_name="Support",
             email=test_support_email,
             password_hash=hashed_password,
-            role_id=1
+            role_id=2
         ),
         Collaborator(
             first_name="Test",
@@ -140,3 +141,8 @@ def try_commit(db, model):
     except Exception as e:
         print(f"❌ ERROR: {e}")
         db.rollback()
+
+@pytest.fixture
+def cli_runner():
+    """Returns a Click CLI runner instance"""
+    return CliRunner()

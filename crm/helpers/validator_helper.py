@@ -22,7 +22,7 @@ class ValidatorHelper:
         self.collaborator_valid_fields = self.collaborator_required_fields
         
         self.contract_required_fields = ["costing", "remaining_due_payment", "client_id", "commercial_id"]
-        self.contract_valid_fields = self.contract_required_fields + ["signed"]
+        self.contract_valid_fields = self.contract_required_fields + ["is_signed"]
         
         self.event_required_fields = ["name", "start_date", "end_date", "location", "attendees", "contract_id"]
         self.event_valid_fields = self.event_required_fields + ["notes", "support_id"]
@@ -58,8 +58,8 @@ class ValidatorHelper:
         elif self.model_type == ModelTypeEnum.CONTRACT:
             self.shortened_validate_data("costing", float, self.validate_number, 0)
             self.shortened_validate_data("remaining_due_payment", float, self.validate_number, 0)
-            if self.data.get("signed"):
-                self.type_check(bool, "signed", self.data["signed"])
+            if self.data.get("is_signed"):
+                self.type_check(bool, "is_signed", self.data["is_signed"])
             self.shortened_validate_data("client_id", int, self.validate_foreign_id, None, None, ForeignKeyTypeEnum.CLIENT)
             self.shortened_validate_data("commercial_id", int, self.validate_foreign_id, None, None, ForeignKeyTypeEnum.COMMERCIAL)
 
@@ -85,7 +85,7 @@ class ValidatorHelper:
     def validate_datetime(self, field, value):
         self.validate_string(field, value, min_length=0, max_length=20)
         try:
-            datetime.strptime(value, "%d/%m/%Y-%Hh%M")
+            datetime.strptime(value.strip(), "%d/%m/%Y-%Hh%M")
         except ValueError:
             self.add_error(field, "Invalid datetime format. Expected format: DD/MM/YYYY-HHhMM")
 
@@ -122,7 +122,7 @@ class ValidatorHelper:
 
     def validate_address(self, field, value):
         self.validate_string(field, value, min_length=0, max_length=100)
-        address_regex = r"^\d+\s+\w+(\s\w+)*,\s+\d+\s+\w+(\s\w+)*,\s+\w+(\s\w+)*$"
+        address_regex = r"^\d+\s+[-\w\s]+,\s+\d+\s+[-\w\s]+,\s+[-\w\s-]+$"
         if not re.match(address_regex, value):
             self.add_error(
                 field,
@@ -155,7 +155,7 @@ class ValidatorHelper:
             if role_type_enum is not None and role_type_enum.value != entity.role_id:
                 self.add_error(field, "The given collaborator is not of the authorized role")
                 
-            if model is Contract and not entity.signed:
+            if model is Contract and not entity.is_signed:
                 self.add_error(field, "It is not allowed to create an event for an unsigned contract")
 
         else:

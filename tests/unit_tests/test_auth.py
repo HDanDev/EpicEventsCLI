@@ -7,6 +7,7 @@ from crm.models.collaborators import Collaborator
 from crm.models.blacklist_tokens import BlacklistToken
 from crm.database import SessionLocal
 from tests.test_context_db import test_db, test_manager_email, password
+from unittest.mock import patch
 
 
 def test_login_service_success(test_db):
@@ -39,17 +40,21 @@ def test_login_service_invalid_email(test_db):
 
 def test_logout_service(test_db):
     """Test logout process."""
-    user, _ = login_service(test_db, test_manager_email, password)
-    assert user is not None, "⚠️ Login failed before logout test!"
+    
+    with (
+        patch("crm.helpers.authorize_helper.DB", test_db),
+    ):
+        user, _ = login_service(test_db, test_manager_email, password)
+        assert user is not None, "⚠️ Login failed before logout test!"
 
-    error = logout_service(test_db)
-    assert error is None
+        error = logout_service(test_db)
+        assert error is None
 
-    token = keyring.get_password(KEYRING_SERVICE, "auth_token")
-    assert token is None, "❌ Token should be removed from keyring after logout!"
+        token = keyring.get_password(KEYRING_SERVICE, "auth_token")
+        assert token is None, "❌ Token should be removed from keyring after logout!"
 
-    blacklisted_token = test_db.query(BlacklistToken).filter(BlacklistToken.token.isnot(None)).first()
-    assert blacklisted_token is not None, "❌ Token should be blacklisted after logout!"
+        blacklisted_token = test_db.query(BlacklistToken).filter(BlacklistToken.token.isnot(None)).first()
+        assert blacklisted_token is not None, "❌ Token should be blacklisted after logout!"
 
 
 def test_blacklisted_token_cannot_be_used(test_db):

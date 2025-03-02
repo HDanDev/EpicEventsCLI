@@ -11,3 +11,5 @@ from crm.models.events import Event
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+DB = SessionLocal()

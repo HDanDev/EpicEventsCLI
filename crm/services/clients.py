@@ -6,13 +6,14 @@ from crm.helpers.authorize_helper import get_current_user
 
 def create_client(db: Session, first_name: str, last_name: str, email: str, phone: str, company_name: str):
     """Create a new client."""
-
+    current_collaborator, error = get_current_user()
     client = Client(
         first_name=first_name,
         last_name=last_name,
         email=email,
         phone=phone,
-        company_name=company_name
+        company_name=company_name, 
+        commercial_id=current_collaborator.id
     )
     db.add(client)
     db.commit()
@@ -25,8 +26,8 @@ def get_client(db: Session, client_id: int):
 
 def get_all_clients(db: Session):
     """Retrieve all clients."""
-    current_collaborator, error = get_current_user(db)
-    if not error and RoleEnum(current_collaborator.id) == RoleEnum.MANAGEMENT:
+    current_collaborator, error = get_current_user()
+    if not error and RoleEnum(current_collaborator.role_id) == RoleEnum.MANAGEMENT:
         print("add filtering for Management")
     return db.query(Client).all()
 
