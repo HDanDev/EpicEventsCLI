@@ -2,6 +2,7 @@ import pytest
 from sqlalchemy.orm import Session
 from crm.models.clients import Client
 from crm.models.roles import RoleEnum
+from unittest.mock import patch
 from crm.helpers.authorize_helper import get_current_user
 from crm.services.clients import create_client, get_client, get_all_clients, update_client, delete_client
 from tests.test_context_db import test_db
@@ -10,33 +11,40 @@ from tests.test_context_db import test_db
 @pytest.fixture
 def sample_client(test_db: Session):
     """Fixture to create a sample client for testing."""
-    client = create_client(
-        db=test_db,
-        first_name="John",
-        last_name="Doe",
-        email="john.doe@example.com",
-        phone="123456789",
-        company_name="Doe Inc"
-    )
-    test_db.commit()
-    return client
+    mock_collaborator = type("Collaborator", (object,), {"id": 3})
+
+    with patch("crm.services.clients.get_current_user", return_value=(mock_collaborator, None)):
+        client = create_client(
+            db=test_db,
+            first_name="John",
+            last_name="Doe",
+            email="john.doe@example.com",
+            phone="123456789",
+            company_name="Doe Inc"
+        )
+        test_db.commit()
+        return client
 
 
 def test_create_client(test_db):
     """Test client creation."""
-    client = create_client(
-        db=test_db,
-        first_name="Alice",
-        last_name="Smith",
-        email="alice.smith@example.com",
-        phone="987654321",
-        company_name="Smith Ltd"
-    )
+    mock_collaborator = type("Collaborator", (object,), {"id": 3})
 
-    assert client.id is not None, "❌ Client ID should not be None"
-    assert client.first_name == "Alice"
-    assert client.last_name == "Smith"
-    assert client.email == "alice.smith@example.com"
+    with patch("crm.services.clients.get_current_user", return_value=(mock_collaborator, None)):
+        client = create_client(
+            db=test_db,
+            first_name="Alice",
+            last_name="Smith",
+            email="alice.smith@example.com",
+            phone="987654321",
+            company_name="Smith Ltd"
+        )
+
+        assert client.id is not None, "❌ Client ID should not be None"
+        assert client.first_name == "Alice"
+        assert client.last_name == "Smith"
+        assert client.email == "alice.smith@example.com"
+        assert client.commercial_id == 3
 
 
 def test_get_client(test_db, sample_client):
