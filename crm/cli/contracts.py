@@ -61,11 +61,18 @@ def view(contract_id):
         click.echo("❌ Contract not found!")
 
 @click.command()
+@click.option('--filter-field', type=str, help="Field to filter by (available choices are: id, costing, remaining_due_payment, creation_date, is_signed, client_id, commercial_id).")
+@click.option('--filter-value', type=str, help="Value to filter by.")
 @authentication_required()
-def list():
+def list(filter_field, filter_value):
     """List all contracts."""
-    contracts = get_all_contracts(DB)
+    try:
+        contracts = get_all_contracts(DB, filter_field, filter_value)
+    except ValueError as e:
+        click.echo(f"🚨 {str(e)}")
+        raise SystemExit(1)
     DB.close()
+
     if not contracts:
         click.echo("🚨 No contracts found!")
     else:

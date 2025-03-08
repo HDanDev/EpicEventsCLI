@@ -60,11 +60,18 @@ def view(collaborator_id):
         click.echo("❌ Collaborator not found!")
 
 @click.command()
+@click.option('--filter-field', type=str, help="Field to filter by (available choices are: id, id, first_name, last_name, email, role_id).")
+@click.option('--filter-value', type=str, help="Value to filter by.")
 @authentication_required()
-def list():
+def list(filter_field, filter_value):
     """List all collaborators."""
-    collaborators = get_all_collaborators(DB)
+    try:
+        collaborators = get_all_collaborators(DB, filter_field, filter_value)
+    except ValueError as e:
+        click.echo(f"🚨 {str(e)}")
+        raise SystemExit(1)
     DB.close()
+
     if not collaborators:
         click.echo("🚨 No collaborators found!")
     else:

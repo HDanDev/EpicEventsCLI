@@ -61,11 +61,18 @@ def view(client_id):
         click.echo("❌ Client not found!")
 
 @click.command()
+@click.option('--filter-field', type=str, help="Field to filter by (available choices are: id, first_name, last_name, email, phone, company_name, first_contact_date, last_contact_date, commercial_id).")
+@click.option('--filter-value', type=str, help="Value to filter by.")
 @authentication_required()
-def list():
+def list(filter_field, filter_value):
     """List all clients."""
-    clients = get_all_clients(DB)
+    try:
+        clients = get_all_clients(DB, filter_field, filter_value)
+    except ValueError as e:
+        click.echo(f"🚨 {str(e)}")
+        raise SystemExit(1)
     DB.close()
+
     if not clients:
         click.echo("🚨 No clients found!")
     else:

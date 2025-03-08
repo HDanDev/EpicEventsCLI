@@ -58,10 +58,14 @@ def test_get_client(test_db, sample_client):
 
 def test_get_all_clients(test_db):
     """Test retrieving all clients."""
-    clients = get_all_clients(db=test_db)
+    mock_collaborator = type("Collaborator", (object,), {"id": 3, "role_id": 3})
+    with (
+        patch("crm.services.clients.get_current_user", return_value=(mock_collaborator, None)),
+    ):
+        clients = get_all_clients(db=test_db, filter_field=None, filter_value=None)
 
-    assert isinstance(clients, list), "❌ Should return a list"
-    assert len(clients) > 0, "❌ Should retrieve at least one client"
+        assert isinstance(clients, list), "❌ Should return a list"
+        assert len(clients) > 0, "❌ Should retrieve at least one client"
 
 
 def test_update_client(test_db, sample_client):

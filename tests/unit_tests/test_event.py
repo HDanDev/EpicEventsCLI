@@ -5,6 +5,7 @@ from crm.models.contracts import Contract
 from crm.helpers.format_helper import FormatHelper
 from crm.services.events import create_event, get_event, get_all_events, update_event, delete_event
 from tests.test_context_db import test_db, test_manager_email
+from unittest.mock import patch
 
 
 @pytest.fixture
@@ -65,10 +66,14 @@ def test_get_event(test_db, sample_event):
 
 def test_get_all_events(test_db):
     """Test retrieving all events."""
-    events = get_all_events(db=test_db)
+    mock_collaborator = type("Collaborator", (object,), {"id": 3, "role_id": 3})
+    with (
+        patch("crm.services.events.get_current_user", return_value=(mock_collaborator, None)),
+    ):
+        events = get_all_events(db=test_db, filter_field=None, filter_value=None)
 
-    assert isinstance(events, list), "❌ Should return a list"
-    assert len(events) > 0, "❌ At least one event should be present"
+        assert isinstance(events, list), "❌ Should return a list"
+        assert len(events) > 0, "❌ At least one event should be present"
 
 
 def test_update_event(test_db, sample_event):

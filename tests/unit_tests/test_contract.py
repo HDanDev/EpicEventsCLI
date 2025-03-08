@@ -4,6 +4,7 @@ from crm.models.contracts import Contract
 from crm.models.clients import Client
 from crm.services.contracts import create_contract, get_contract, get_all_contracts, update_contract, delete_contract
 from tests.test_context_db import test_db, test_manager_email
+from unittest.mock import patch
 
 
 @pytest.fixture
@@ -55,7 +56,11 @@ def test_get_contract(test_db, sample_contract):
 
 def test_get_all_contracts(test_db):
     """Test retrieving all contracts."""
-    contracts = get_all_contracts(db=test_db)
+    mock_collaborator = type("Collaborator", (object,), {"id": 3, "role_id": 3})
+    with (
+        patch("crm.services.contracts.get_current_user", return_value=(mock_collaborator, None)),
+    ):
+        contracts = get_all_contracts(db=test_db, filter_field=None, filter_value=None)
 
     assert isinstance(contracts, list), "❌ Should return a list"
     assert len(contracts) > 0, "❌ At least one contract should be present"

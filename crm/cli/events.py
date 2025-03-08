@@ -67,11 +67,18 @@ def view(event_id):
         click.echo("❌ Event not found!")
 
 @click.command()
+@click.option('--filter-field', type=str, help="Field to filter by (available choices are: id, name, location, attendees, notes, contract_id, start_date, end_date, support_id).")
+@click.option('--filter-value', type=str, help="Value to filter by.")
 @authentication_required()
-def list():
+def list(filter_field, filter_value):
     """List all events."""
-    events = get_all_events(DB)
+    try:
+        events = get_all_events(DB, filter_field, filter_value)
+    except ValueError as e:
+        click.echo(f"🚨 {str(e)}")
+        raise SystemExit(1)
     DB.close()
+
     if not events:
         click.echo("🚨 No events found!")
     else:

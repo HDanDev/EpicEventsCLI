@@ -1,4 +1,5 @@
 import pytest
+from unittest.mock import patch
 from crm.models.roles import Role
 from crm.models.collaborators import Collaborator
 from tests.test_context_db import test_db, test_manager_email
@@ -12,9 +13,13 @@ def test_create_collaborator(test_db):
     assert collab.first_name == "John"
 
 def test_get_all_collaborator(test_db):
-    collabs = get_all_collaborators(test_db)
-    assert collabs is not None
-    assert len(collabs) == 3
+    mock_collaborator = type("Collaborator", (object,), {"id": 3, "role_id": 3})
+    with (
+        patch("crm.services.collaborators.get_current_user", return_value=(mock_collaborator, None)),
+    ):
+        collabs = get_all_collaborators(test_db, filter_field=None, filter_value=None)
+        assert collabs is not None
+        assert len(collabs) == 3
 
 def test_get_collaborator(test_db):
     collab = get_collaborator(test_db, 1)

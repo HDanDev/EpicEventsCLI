@@ -2,6 +2,8 @@ from sqlalchemy.orm import Session
 from crm.models.clients import Client
 from crm.models.roles import RoleEnum
 from crm.helpers.authorize_helper import get_current_user
+from crm.helpers.filter_helper import FilterHelper
+import click
 
 
 def create_client(db: Session, first_name: str, last_name: str, email: str, phone: str, company_name: str):
@@ -24,11 +26,15 @@ def get_client(db: Session, client_id: int):
     """Retrieve a client by ID."""
     return db.query(Client).filter(Client.id == client_id).first()
 
-def get_all_clients(db: Session):
+def get_all_clients(db: Session, filter_field, filter_value):
     """Retrieve all clients."""
     current_collaborator, error = get_current_user()
+    if RoleEnum(current_collaborator.role_id) != RoleEnum.MANAGEMENT and (filter_field != None or filter_value != None):
+        click.echo(f"🚨 Only Managers have the right to use the filter option for clients, proceeding without them...")
+        
     if not error and RoleEnum(current_collaborator.role_id) == RoleEnum.MANAGEMENT:
-        print("add filtering for Management")
+        filter_helper = FilterHelper(db, Client)
+        return filter_helper.apply_filter(filter_field, filter_value)
     return db.query(Client).all()
 
 def update_client(db: Session, client_id: int, **kwargs):

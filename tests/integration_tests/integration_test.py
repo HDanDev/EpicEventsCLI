@@ -56,7 +56,7 @@ def test_full_integration_flow(cli_runner, test_db):
         client_id = test_db.query(Client).filter_by(email="alice@email.com").first().id
 
         ## Step 7: Get all clients
-        result = cli_runner.invoke(cli, ["clients", "list"])
+        result = cli_runner.invoke(cli, ["clients", "list", "--filter-field", None, "--filter-value", None])
         assert "Email: alice@email.com" in result.output
 
         ## Step 8: Login as manager & create contract

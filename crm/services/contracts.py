@@ -2,6 +2,8 @@ from sqlalchemy.orm import Session
 from crm.models.contracts import Contract
 from crm.models.roles import RoleEnum
 from crm.helpers.authorize_helper import get_current_user
+from crm.helpers.filter_helper import FilterHelper
+import click
 
 
 def create_contract(db: Session, costing: float, remaining_due_payment: float, is_signed: bool, client_id: int, commercial_id: int):
@@ -23,11 +25,15 @@ def get_contract(db: Session, contract_id: int):
     """Retrieve a contract by ID."""
     return db.query(Contract).filter(Contract.id == contract_id).first()
 
-def get_all_contracts(db: Session):
+def get_all_contracts(db: Session, filter_field, filter_value):
     """Retrieve all contracts."""
     current_collaborator, error = get_current_user()
+    if RoleEnum(current_collaborator.role_id) != RoleEnum.SALES and (filter_field != None or filter_value != None):
+        click.echo(f"🚨 Only Managers have the right to use the filter option for contracts, proceeding without them...")
+        
     if not error and RoleEnum(current_collaborator.role_id) == RoleEnum.SALES:
-        print("add filtering for Sales")
+        filter_helper = FilterHelper(db, Contract)
+        return filter_helper.apply_filter(filter_field, filter_value)
     return db.query(Contract).all()
 
 def update_contract(db: Session, contract_id: int, **kwargs):
