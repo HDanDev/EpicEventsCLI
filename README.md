@@ -35,7 +35,6 @@ source venv/bin/activate
 #### 3. Install Dependencies
 ```sh
 pip install -r requirements.txt
-pip install --editable .
 ```
 
 #### 4. Configure Environment Variables
@@ -45,21 +44,116 @@ DATABASE_URL=
 HASH_SECRET_KEY=
 MAIN_MANAGER_EMAIL=
 MAIN_MANAGER_PASSWORD=
-MAIN_MANAGER_HASHED_PASSWORD=
+APP_SECRET_KEY=
 SENTRY_URL=
+KEYRING_SERVICE=
 ```
 
 #### 5. Initialize Database
 ```sh
-python app.py init-db
+python init-db.py
 ```
 
-#### 6. Run the Application
+#### 6. Run Commands
+Authentication Commands:
 ```sh
-flask run
+python crm/cli/main.py auth login
+```
+```sh
+python crm/cli/main.py auth logout
 ```
 
-The application will be accessible at `http://127.0.0.1:5000/`.
+The default main manager user credentials are those specified in the .env file (cf. **MAIN_MANAGER_EMAIL** and **MAIN_MANAGER_PASSWORD**)
+
+Collaborators Commands:
+```sh
+python crm/cli/main.py collaborators add
+```
+```sh
+python crm/cli/main.py collaborators view
+```
+```sh
+python crm/cli/main.py collaborators list
+```
+```sh
+python crm/cli/main.py collaborators edit
+```
+```sh
+python crm/cli/main.py collaborators edit_password
+```
+```sh
+python crm/cli/main.py collaborators delete
+```
+
+Clients Commands:
+```sh
+python crm/cli/main.py clients add
+```
+```sh
+python crm/cli/main.py clients view
+```
+```sh
+python crm/cli/main.py clients list
+```
+```sh
+python crm/cli/main.py clients edit
+```
+```sh
+python crm/cli/main.py clients delete
+```
+
+Contracts Commands:
+```sh
+python crm/cli/main.py contracts add
+```
+```sh
+python crm/cli/main.py contracts view
+```
+```sh
+python crm/cli/main.py contracts list
+```
+```sh
+python crm/cli/main.py contracts edit
+```
+```sh
+python crm/cli/main.py contracts delete
+```
+
+Events Commands:
+```sh
+python crm/cli/main.py events add
+```
+```sh
+python crm/cli/main.py events view
+```
+```sh
+python crm/cli/main.py events list
+```
+```sh
+python crm/cli/main.py events edit
+```
+```sh
+python crm/cli/main.py events delete
+```
+
+Alternatively you can get all the command using your integrated terminal:
+```sh
+python crm/cli/main.py --help
+```
+Then ask for a specific command using:
+```sh
+python crm/cli/main.py [Specific command e.g. "auth"] --help
+```
+
+#### 7. Run Tests with Pytest
+```sh
+pytest -s
+```
+If for some reason you're facing issues with the command above try the following:
+```sh
+$env:PYTHONPATH = (Get-Location).Path
+>> pytest -s
+```
 
 ## Features
 - User Authentication and Role-Based Access Control
